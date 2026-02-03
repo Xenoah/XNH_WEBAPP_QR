@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>QR Master Pro</title>
+    <title>QuickReader</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -22,19 +22,29 @@
     </script>
 
     <!-- Dependencies (UMD Globals) -->
-    <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for JSX -->
     <script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
+    
+    <!-- QR Libraries -->
+    <!-- jsQR for reading -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <!-- qrcode for generating (Using cdnjs for better stability) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.1/qrcode.min.js"></script>
+    
+    <!-- Utilities -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
       body { font-family: 'Inter', sans-serif; }
       .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
       @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+      canvas { max-width: 100%; height: auto; }
     </style>
   <script type="importmap">
 {
@@ -61,7 +71,7 @@
       const { useState, useEffect, useRef, useCallback } = React;
       const ReactDOM = window.ReactDOM;
 
-      // --- Icons (Inline SVG to avoid module loading issues) ---
+      // --- Icons ---
       const Icons = {
         Camera: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>,
         Upload: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>,
@@ -80,7 +90,8 @@
         Languages: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>,
         QrCode: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></svg>,
         ScanLine: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/></svg>,
-        RotateCcw: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        RotateCcw: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>,
+        FileCode: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="m9 13 3 3-3 3"/><path d="m15 19-3-3 3-3"/></svg>
       };
 
       // --- Constants & Types ---
@@ -100,7 +111,7 @@
 
       const TRANSLATIONS = {
         [Language.EN]: {
-          appTitle: 'QR Master Pro',
+          appTitle: 'QuickReader',
           tabRead: 'Read QR',
           tabGen: 'Generate QR',
           scanCamera: 'Scan with Camera',
@@ -126,6 +137,7 @@
           generate: 'Generate Image',
           verify: 'Verify',
           download: 'Download PNG',
+          downloadSvg: 'Download SVG',
           downloadZip: 'Download ZIP',
           generatingZip: 'Generating ZIP...',
           realtimePreview: 'Real-time Preview',
@@ -138,9 +150,11 @@
           filePreview: 'Image Preview',
           reset: 'Reset',
           pasteError: 'Could not paste. Please allow clipboard access or type manually.',
+          libraryError: 'QR Library not loaded. Please check internet connection.',
+          trademark: 'QR Code is a registered trademark of DENSO WAVE INCORPORATED.',
         },
         [Language.JP]: {
-          appTitle: 'QRマスター・プロ',
+          appTitle: 'QuickReader',
           tabRead: 'QR読み取り',
           tabGen: 'QR生成',
           scanCamera: 'カメラでスキャン',
@@ -166,6 +180,7 @@
           generate: '画像生成',
           verify: '検証する',
           download: 'ダウンロード (PNG)',
+          downloadSvg: 'ダウンロード (SVG)',
           downloadZip: '一括ダウンロード (ZIP)',
           generatingZip: 'ZIP生成中...',
           realtimePreview: 'リアルタイムプレビュー',
@@ -178,28 +193,64 @@
           filePreview: '画像プレビュー',
           reset: 'リセット',
           pasteError: '貼り付けできませんでした。クリップボードのアクセスを許可するか、手動で入力してください。',
+          libraryError: 'QRライブラリが読み込めません。インターネット接続を確認してください。',
+          trademark: 'QRコードは株式会社デンソーウェーブの登録商標です。',
         }
       };
 
-      // --- QRCodeCanvas Component (Custom Implementation for No-Build) ---
-      const QRCodeCanvas = ({ value, size, bgColor, fgColor, level, includeMargin }) => {
+      // --- QRCodeCanvas Component ---
+      const QRCodeCanvas = ({ value, size, bgColor, fgColor, level, includeMargin, onError }) => {
         const canvasRef = useRef(null);
 
         useEffect(() => {
-          if (canvasRef.current && window.QRCode) {
-            window.QRCode.toCanvas(canvasRef.current, value, {
-              width: size,
-              margin: includeMargin ? 4 : 1,
-              color: {
-                dark: fgColor,
-                light: bgColor
-              },
-              errorCorrectionLevel: level
-            }, (error) => {
-              if (error) console.error(error);
-            });
-          }
-        }, [value, size, bgColor, fgColor, level, includeMargin]);
+          if (!value) return;
+
+          const generate = () => {
+             // Check if library is available
+             if (window.QRCode && typeof window.QRCode.toCanvas === 'function') {
+               if (canvasRef.current) {
+                  try {
+                    window.QRCode.toCanvas(canvasRef.current, value, {
+                      width: size,
+                      margin: includeMargin ? 4 : 1,
+                      color: {
+                        dark: fgColor,
+                        light: bgColor
+                      },
+                      errorCorrectionLevel: level
+                    }, (error) => {
+                      if (error) {
+                        console.error("QR Gen Error:", error);
+                        if (onError) onError();
+                      }
+                    });
+                  } catch (err) {
+                    console.error("QR Gen Exception:", err);
+                    if (onError) onError();
+                  }
+               }
+            } else {
+              console.warn("QRCode library not ready yet, retrying...");
+              setTimeout(() => {
+                 if (window.QRCode && canvasRef.current) {
+                     window.QRCode.toCanvas(canvasRef.current, value, {
+                      width: size,
+                      margin: includeMargin ? 4 : 1,
+                      color: {
+                        dark: fgColor,
+                        light: bgColor
+                      },
+                      errorCorrectionLevel: level
+                    }, (error) => {});
+                 } else {
+                   if (onError) onError();
+                 }
+              }, 1000);
+            }
+          };
+          
+          generate();
+        }, [value, size, bgColor, fgColor, level, includeMargin, onError]);
 
         return <canvas ref={canvasRef} />;
       };
@@ -484,6 +535,7 @@
         const [showSettings, setShowSettings] = useState(false);
         const [previewKey, setPreviewKey] = useState(0);
         const [isZipping, setIsZipping] = useState(false);
+        const [libError, setLibError] = useState(false);
 
         const qrCanvasRef = useRef(null);
 
@@ -542,6 +594,49 @@
             }
           } else {
               alert("QR Code not rendered yet.");
+          }
+        };
+
+        const downloadSVG = () => {
+          if (!settings.text) return;
+          
+          if (!window.QRCode || typeof window.QRCode.toString !== 'function') {
+            alert(t('libraryError'));
+            return;
+          }
+
+          const opts = {
+            errorCorrectionLevel: settings.level,
+            margin: settings.includeMargin ? 4 : 1,
+            color: {
+              dark: settings.fgColor,
+              light: settings.bgColor
+            },
+            width: 512,
+            type: 'svg'
+          };
+
+          try {
+            window.QRCode.toString(settings.text, opts, (err, svgString) => {
+              if (err) {
+                console.error(err);
+                alert("SVG Generation Error");
+                return;
+              }
+              
+              const blob = new Blob([svgString], { type: 'image/svg+xml' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `qrcode-${Date.now()}.svg`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            });
+          } catch (e) {
+            console.error(e);
+            alert("Failed to generate SVG.");
           }
         };
 
@@ -794,12 +889,17 @@
                 
                 <div 
                   ref={qrCanvasRef}
-                  className="p-4 bg-white rounded-lg shadow-inner border border-gray-200 flex justify-center items-center"
+                  className="p-4 bg-white rounded-lg shadow-inner border border-gray-200 flex justify-center items-center relative"
                   style={{ 
                     minHeight: '280px', 
                     minWidth: '280px',
                   }}
                 >
+                   {libError && (
+                     <div className="absolute inset-0 flex items-center justify-center bg-red-50/90 text-red-500 text-center p-4">
+                       <p className="font-bold text-sm">{t('libraryError')}</p>
+                     </div>
+                   )}
                    <QRCodeCanvas
                       key={previewKey}
                       value={displayParams.text || 'https://example.com'}
@@ -808,6 +908,7 @@
                       fgColor={displayParams.fgColor}
                       level={displayParams.level}
                       includeMargin={displayParams.includeMargin}
+                      onError={() => setLibError(true)}
                     />
                 </div>
 
@@ -834,6 +935,13 @@
                     className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:opacity-90 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Icons.Download size={18} /> {t('download')}
+                  </button>
+                  <button 
+                    onClick={downloadSVG}
+                    disabled={!settings.text}
+                    className="col-span-2 flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Icons.FileCode size={18} /> {t('downloadSvg')}
                   </button>
                 </div>
 
@@ -967,6 +1075,13 @@
                 <QRGenerator key={`gen-${resetKey}`} lang={lang} onVerify={handleVerifyRequest} />
               </div>
             </main>
+
+            <footer className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 p-4 text-center mt-auto">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {t('trademark')}
+              </p>
+            </footer>
+
           </div>
         );
       };
