@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QR Master Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: '#3b82f6',
+              secondary: '#64748b',
+            }
+          }
+        }
+      }
+    </script>
+    <!-- Babel for in-browser compilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      body { font-family: 'Inter', sans-serif; }
+      .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
+      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "jsqr": "https://esm.sh/jsqr@^1.4.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
+    "qrcode.react": "https://esm.sh/qrcode.react@^4.2.0",
+    "papaparse": "https://esm.sh/papaparse@^5.5.3",
+    "jszip": "https://esm.sh/jszip@^3.10.1",
+    "qrcode": "https://esm.sh/qrcode@^1.5.4"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 transition-colors duration-200">
+    <div id="root"></div>
+
+    <!-- Application Logic -->
+    <script type="text/babel" data-presets="typescript,react" data-type="module">
+      import React, { useState, useEffect, useRef, useCallback } from 'https://esm.sh/react@18.2.0';
+      import ReactDOM from 'https://esm.sh/react-dom@18.2.0/client';
+      import { Camera, Upload, Copy, Share2, AlertCircle, Image as ImageIcon, Settings, Download, Clipboard, Play, SkipBack, SkipForward, RefreshCw, CheckCircle2, FileArchive, Moon, Sun, Languages, QrCode, ScanLine, RotateCcw } from 'https://esm.sh/lucide-react@0.263.1';
+      import jsQR from 'https://esm.sh/jsqr@1.4.0';
+      import { QRCodeCanvas } from 'https://esm.sh/qrcode.react@3.1.0';
+      import Papa from 'https://esm.sh/papaparse@5.4.1';
+      import JSZip from 'https://esm.sh/jszip@3.10.1';
+      import QRCodeLib from 'https://esm.sh/qrcode@1.5.3';
+
+      // --- Types & Constants ---
+      
+      const Language = {
+        EN: 'en',
+        JP: 'jp'
+      };
+
+      const Tab = {
+        READ: 'read',
+        GENERATE: 'generate'
+      };
+
+      const Theme = {
+        LIGHT: 'light',
+        DARK: 'dark'
+      };
+
+      const DEFAULT_QR_SETTINGS = {
+        text: 'https://example.com',
+        fgColor: '#000000',
+        bgColor: '#ffffff',
+        level: 'M',
+        includeMargin: true,
+        shape: 'square',
+        finderColor: '#000000',
+      };
+
+      const TRANSLATIONS = {
+        [Language.EN]: {
+          appTitle: 'QR Master Pro',
+          tabRead: 'Read QR',
+          tabGen: 'Generate QR',
+          scanCamera: 'Scan with Camera',
+          uploadImage: 'Upload File',
+          urlImage: 'From URL',
+          dragDrop: 'Drag & Drop or Click to Upload',
+          noQrFound: 'No QR code found in image.',
+          scannedResult: 'Scanned Result',
+          copy: 'Copy',
+          share: 'Share',
+          copied: 'Copied!',
+          inputText: 'Enter URL or Text',
+          paste: 'Paste',
+          importCsv: 'Import CSV',
+          preview: 'Preview',
+          settings: 'Settings',
+          color: 'Foreground Color',
+          bgColor: 'Background Color',
+          errCorrection: 'Error Correction Level',
+          quietZone: 'Quiet Zone',
+          finderColor: 'Finder Pattern Color',
+          shape: 'Module Shape',
+          generate: 'Generate Image',
+          verify: 'Verify',
+          download: 'Download PNG',
+          downloadZip: 'Download ZIP',
+          generatingZip: 'Generating ZIP...',
+          realtimePreview: 'Real-time Preview',
+          csvNav: 'CSV Record',
+          startCamera: 'Start Camera',
+          stopCamera: 'Stop Camera',
+          cameraError: 'Camera access denied or unavailable.',
+          verifying: 'Verifying...',
+          verificationSuccess: 'Sent to Reader tab for verification!',
+          filePreview: 'Image Preview',
+          reset: 'Reset',
+          pasteError: 'Could not paste. Please allow clipboard access or type manually.',
+        },
+        [Language.JP]: {
+          appTitle: 'QRマスター・プロ',
+          tabRead: 'QR読み取り',
+          tabGen: 'QR生成',
+          scanCamera: 'カメラでスキャン',
+          uploadImage: 'ファイルアップロード',
+          urlImage: 'URLから読み込み',
+          dragDrop: 'ドラッグ＆ドロップ または クリック',
+          noQrFound: 'QRコードが見つかりませんでした。',
+          scannedResult: 'スキャン結果',
+          copy: 'コピー',
+          share: '共有',
+          copied: 'コピー完了！',
+          inputText: 'URLまたはテキストを入力',
+          paste: '貼り付け',
+          importCsv: 'CSV読み込み',
+          preview: 'プレビュー',
+          settings: '設定',
+          color: '前景色',
+          bgColor: '背景色',
+          errCorrection: '誤り訂正レベル',
+          quietZone: 'クワイエットゾーン',
+          finderColor: 'ファインダパターン色',
+          shape: '形状',
+          generate: '画像生成',
+          verify: '検証する',
+          download: 'ダウンロード (PNG)',
+          downloadZip: '一括ダウンロード (ZIP)',
+          generatingZip: 'ZIP生成中...',
+          realtimePreview: 'リアルタイムプレビュー',
+          csvNav: 'CSVレコード',
+          startCamera: 'カメラ起動',
+          stopCamera: 'カメラ停止',
+          cameraError: 'カメラへのアクセスが拒否されたか、利用できません。',
+          verifying: '検証中...',
+          verificationSuccess: '検証用に読み取りタブへ送信しました！',
+          filePreview: '画像プレビュー',
+          reset: 'リセット',
+          pasteError: '貼り付けできませんでした。クリップボードのアクセスを許可するか、手動で入力してください。',
+        }
+      };
+
+      // --- Components ---
+
+      const QRReader = ({ lang, initialImage }) => {
+        const t = (key) => TRANSLATIONS[lang][key];
+        const [activeMode, setActiveMode] = useState('camera');
+        const [scanResult, setScanResult] = useState(null);
+        const [error, setError] = useState(null);
+        const [isCopied, setIsCopied] = useState(false);
+        const [previewImage, setPreviewImage] = useState(null);
+        
+        const videoRef = useRef(null);
+        const canvasRef = useRef(null);
+        const [isCameraActive, setIsCameraActive] = useState(false);
+        const requestRef = useRef(0);
+
+        const scanImage = useCallback((src) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0);
+              const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+              const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                  inversionAttempts: "dontInvert",
+              });
+              if (code) {
+                setScanResult(code.data);
+                setError(null);
+              } else {
+                setError(t('noQrFound'));
+                setScanResult(null);
+              }
+            }
+          };
+          img.onerror = () => setError(t('noQrFound'));
+          img.src = src;
+        }, [t]);
+
+        useEffect(() => {
+          if (initialImage) {
+            setActiveMode('file');
+            setPreviewImage(initialImage);
+            scanImage(initialImage);
+          }
+        }, [initialImage, scanImage]);
+
+        const stopCamera = useCallback(() => {
+          if (videoRef.current && videoRef.current.srcObject) {
+            const stream = videoRef.current.srcObject;
+            stream.getTracks().forEach(track => track.stop());
+            videoRef.current.srcObject = null;
+          }
+          if (requestRef.current) {
+            cancelAnimationFrame(requestRef.current);
+          }
+          setIsCameraActive(false);
+        }, []);
+
+        const tick = useCallback(() => {
+          if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
+            const canvas = canvasRef.current;
+            const video = videoRef.current;
+            if (canvas) {
+              canvas.height = video.videoHeight;
+              canvas.width = video.videoWidth;
+              const ctx = canvas.getContext('2d');
+              if (ctx) {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                  inversionAttempts: "dontInvert",
+                });
+
+                if (code) {
+                  setScanResult(code.data);
+                  setError(null);
+                }
+              }
+            }
+          }
+          requestRef.current = requestAnimationFrame(tick);
+        }, []);
+
+        const startCamera = async () => {
+          setError(null);
+          setPreviewImage(null);
+          setScanResult(null);
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+            if (videoRef.current) {
+              videoRef.current.srcObject = stream;
+              videoRef.current.setAttribute("playsinline", "true");
+              videoRef.current.play();
+              setIsCameraActive(true);
+              requestRef.current = requestAnimationFrame(tick);
+            }
+          } catch (err) {
+            console.error(err);
+            setError(t('cameraError'));
+            setIsCameraActive(false);
+          }
+        };
+
+        useEffect(() => {
+          return () => stopCamera();
+        }, [stopCamera, activeMode]);
+
+        const handleFileUpload = (e) => {
+          setError(null);
+          setScanResult(null);
+          setPreviewImage(null);
+          
+          const file = e.target.files?.[0];
+          if (!file) return;
+
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const result = event.target?.result;
+            setPreviewImage(result);
+            scanImage(result);
+          };
+          reader.readAsDataURL(file);
+        };
+
+        const copyToClipboard = () => {
+          if (scanResult) {
+            navigator.clipboard.writeText(scanResult);
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 2000);
+          }
+        };
+
+        const shareResult = async () => {
+          if (scanResult && navigator.share) {
+            try {
+              await navigator.share({
+                title: 'Scanned QR Code',
+                text: scanResult,
+              });
+            } catch (err) {
+              console.log('Share canceled');
+            }
+          }
+        };
+
+        return (
+          <div className="flex flex-col gap-6 max-w-3xl mx-auto p-4">
+            <div className="flex gap-2 justify-center bg-gray-200 dark:bg-gray-800 p-1 rounded-lg self-center">
+              <button
+                onClick={() => setActiveMode('camera')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeMode === 'camera' ? 'bg-white dark:bg-gray-700 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+              >
+                <Camera size={18} /> {t('scanCamera')}
+              </button>
+              <button
+                onClick={() => setActiveMode('file')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeMode === 'file' ? 'bg-white dark:bg-gray-700 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+              >
+                <Upload size={18} /> {t('uploadImage')}
+              </button>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 min-h-[300px] flex flex-col items-center justify-center border border-gray-100 dark:border-gray-700">
+              {activeMode === 'camera' && (
+                <div className="w-full flex flex-col items-center gap-4">
+                  <div className="relative w-full max-w-md aspect-square bg-black rounded-lg overflow-hidden">
+                     <video ref={videoRef} className="w-full h-full object-cover" />
+                     <canvas ref={canvasRef} className="hidden" />
+                     {!isCameraActive && (
+                       <div className="absolute inset-0 flex items-center justify-center text-white/50">
+                          <Camera size={48} />
+                       </div>
+                     )}
+                  </div>
+                  <button
+                    onClick={isCameraActive ? stopCamera : startCamera}
+                    className={`px-6 py-2 rounded-full font-medium text-white transition-colors ${isCameraActive ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-600 hover:bg-blue-700'}`}
+                  >
+                    {isCameraActive ? t('stopCamera') : t('startCamera')}
+                  </button>
+                </div>
+              )}
+
+              {activeMode === 'file' && (
+                <div className="w-full max-w-md flex flex-col items-center gap-4">
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <Upload className="w-8 h-8 mb-2 text-gray-400" />
+                      <p className="mb-2 text-sm text-gray-500 dark:text-gray-400"><span className="font-semibold">{t('dragDrop')}</span></p>
+                    </div>
+                    <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />
+                  </label>
+
+                  {previewImage && (
+                    <div className="w-full border border-gray-200 dark:border-gray-700 rounded-lg p-2 bg-gray-50 dark:bg-gray-900">
+                      <div className="text-xs text-gray-500 mb-2 font-medium">{t('filePreview')}</div>
+                      <img src={previewImage} alt="Preview" className="max-h-64 mx-auto rounded shadow-sm" />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {error && (
+                <div className="mt-4 p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg flex items-center gap-2 animate-fade-in">
+                  <AlertCircle size={18} />
+                  <span>{error}</span>
+                </div>
+              )}
+            </div>
+
+            {scanResult && (
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-green-100 dark:border-green-900/30 animate-fade-in">
+                <h3 className="text-lg font-semibold mb-3 text-gray-700 dark:text-gray-200">{t('scannedResult')}</h3>
+                <div className="bg-gray-100 dark:bg-gray-950 p-4 rounded-lg font-mono break-all text-sm mb-4 border border-gray-200 dark:border-gray-700">
+                  {scanResult}
+                </div>
+                <div className="flex gap-3 flex-wrap">
+                  <button 
+                    onClick={copyToClipboard}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    <Copy size={16} /> {isCopied ? t('copied') : t('copy')}
+                  </button>
+                  <button 
+                    onClick={shareResult}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    <Share2 size={16} /> {t('share')}
+                  </button>
+                  {/^https?:\/\//.test(scanResult) && (
+                    <a 
+                      href={scanResult} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="ml-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors truncate max-w-[150px]"
+                    >
+                      Open Link
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      };
+
+      const QRGenerator = ({ lang, onVerify }) => {
+        const t = (key) => TRANSLATIONS[lang][key];
+        
+        const [settings, setSettings] = useState(DEFAULT_QR_SETTINGS);
+        const [inputText, setInputText] = useState('');
+        const [csvRecords, setCsvRecords] = useState([]);
+        const [currentCsvIndex, setCurrentCsvIndex] = useState(0);
+        const [realtimePreview, setRealtimePreview] = useState(true);
+        const [showSettings, setShowSettings] = useState(false);
+        const [previewKey, setPreviewKey] = useState(0);
+        const [isZipping, setIsZipping] = useState(false);
+
+        const qrCanvasRef = useRef(null);
+
+        useEffect(() => {
+          if (csvRecords.length > 0) {
+            setSettings(prev => ({ ...prev, text: csvRecords[currentCsvIndex].data }));
+          } else if (inputText) {
+            setSettings(prev => ({ ...prev, text: inputText }));
+          }
+        }, [csvRecords, currentCsvIndex, inputText]);
+
+        const handleCsvUpload = (e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            Papa.parse(file, {
+              complete: (results) => {
+                const records = results.data
+                  .flat()
+                  .filter((cell) => typeof cell === 'string' && cell.trim() !== '')
+                  .map((text, index) => ({ id: index, data: text }));
+                
+                if (records.length > 0) {
+                  setCsvRecords(records);
+                  setCurrentCsvIndex(0);
+                }
+              }
+            });
+          }
+        };
+
+        const handlePaste = async () => {
+          try {
+            const text = await navigator.clipboard.readText();
+            setInputText(text);
+            setCsvRecords([]);
+          } catch (err) {
+            console.error('Paste failed', err);
+            alert(t('pasteError'));
+          }
+        };
+
+        const downloadQR = () => {
+          const canvas = qrCanvasRef.current?.querySelector('canvas');
+          if (canvas) {
+            try {
+              const url = canvas.toDataURL('image/png');
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `qrcode-${Date.now()}.png`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+            } catch (e) {
+              console.error("Download failed", e);
+              alert("Failed to download image.");
+            }
+          } else {
+              alert("QR Code not rendered yet.");
+          }
+        };
+
+        const handleZipDownload = async () => {
+          if (csvRecords.length === 0) return;
+          setIsZipping(true);
+
+          try {
+            const zip = new JSZip();
+            const folder = zip.folder("qrcodes");
+
+            if (folder) {
+              for (const record of csvRecords) {
+                const url = await QRCodeLib.toDataURL(record.data, {
+                  errorCorrectionLevel: settings.level,
+                  margin: settings.includeMargin ? 4 : 1,
+                  color: {
+                    dark: settings.fgColor,
+                    light: settings.bgColor
+                  },
+                  width: 512,
+                });
+                
+                const base64Data = url.split(',')[1];
+                folder.file(`qr_${record.id + 1}.png`, base64Data, {base64: true});
+              }
+
+              const content = await zip.generateAsync({type:"blob"});
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(content);
+              a.download = `qrcodes_batch_${Date.now()}.zip`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(a.href);
+            }
+          } catch (error) {
+            console.error("ZIP Generation Error", error);
+            alert("Error generating ZIP file.");
+          } finally {
+            setIsZipping(false);
+          }
+        };
+
+        const handleVerify = () => {
+          const canvas = qrCanvasRef.current?.querySelector('canvas');
+          if (canvas) {
+              const dataUrl = canvas.toDataURL('image/png');
+              onVerify(dataUrl);
+          }
+        };
+
+        const updateSetting = (key, value) => {
+          setSettings(prev => {
+            const newSettings = { ...prev, [key]: value };
+            return newSettings;
+          });
+        };
+
+        const displaySettings = realtimePreview ? settings : settings; 
+        const [displayParams, setDisplayParams] = useState(DEFAULT_QR_SETTINGS);
+
+        useEffect(() => {
+          if (realtimePreview) {
+            setDisplayParams(settings);
+          }
+        }, [settings, realtimePreview]);
+
+        const triggerManualGenerate = () => {
+          setDisplayParams(settings);
+          setPreviewKey(prev => prev + 1);
+        };
+
+        return (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-6xl mx-auto p-4">
+            <div className="lg:col-span-7 space-y-6">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-100 dark:border-gray-700">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-bold">{t('inputText')}</h2>
+                  <div className="flex gap-2">
+                    <label className="text-sm px-3 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 cursor-pointer rounded-md transition-colors flex items-center gap-1">
+                      {t('importCsv')}
+                      <input type="file" className="hidden" accept=".csv" onChange={handleCsvUpload} />
+                    </label>
+                    <button onClick={handlePaste} className="text-sm px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-md hover:bg-blue-200 transition-colors">
+                      {t('paste')}
+                    </button>
+                  </div>
+                </div>
+
+                {csvRecords.length > 0 ? (
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-center gap-4 bg-gray-50 dark:bg-gray-900 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <button 
+                        disabled={currentCsvIndex === 0}
+                        onClick={() => setCurrentCsvIndex(i => i - 1)}
+                        className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full disabled:opacity-30"
+                      >
+                        <SkipBack size={20} />
+                      </button>
+                      <div className="flex-1 text-center">
+                        <div className="text-xs text-gray-500 uppercase font-bold">{t('csvNav')} {currentCsvIndex + 1} / {csvRecords.length}</div>
+                        <div className="font-mono truncate mt-1">{csvRecords[currentCsvIndex].data}</div>
+                      </div>
+                      <button 
+                        disabled={currentCsvIndex === csvRecords.length - 1}
+                        onClick={() => setCurrentCsvIndex(i => i + 1)}
+                        className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full disabled:opacity-30"
+                      >
+                        <SkipForward size={20} />
+                      </button>
+                    </div>
+                    
+                    <button
+                      onClick={handleZipDownload}
+                      disabled={isZipping}
+                      className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold transition-colors shadow-sm disabled:opacity-50"
+                    >
+                      {isZipping ? (
+                        <RefreshCw className="animate-spin" size={20} />
+                      ) : (
+                        <FileArchive size={20} />
+                      )}
+                      {isZipping ? t('generatingZip') : t('downloadZip')}
+                    </button>
+                  </div>
+                ) : (
+                  <textarea
+                    value={inputText}
+                    onChange={(e) => {
+                      setInputText(e.target.value);
+                      setCsvRecords([]);
+                    }}
+                    placeholder="https://..."
+                    className="w-full h-32 p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                  />
+                )}
+              </div>
+
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden border border-gray-100 dark:border-gray-700">
+                <button 
+                  onClick={() => setShowSettings(!showSettings)}
+                  className="w-full flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <span className="font-bold flex items-center gap-2">
+                    <Settings size={18} /> {t('settings')}
+                  </span>
+                  <span className={`transform transition-transform ${showSettings ? 'rotate-180' : ''}`}>▼</span>
+                </button>
+                
+                {showSettings && (
+                  <div className="p-6 space-y-6 animate-fade-in">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">{t('color')}</label>
+                        <div className="flex items-center gap-2">
+                          <input 
+                            type="color" 
+                            value={settings.fgColor} 
+                            onChange={(e) => updateSetting('fgColor', e.target.value)}
+                            className="h-10 w-14 rounded cursor-pointer"
+                          />
+                          <span className="text-sm font-mono text-gray-500">{settings.fgColor}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">{t('bgColor')}</label>
+                        <div className="flex items-center gap-2">
+                          <input 
+                            type="color" 
+                            value={settings.bgColor} 
+                            onChange={(e) => updateSetting('bgColor', e.target.value)}
+                            className="h-10 w-14 rounded cursor-pointer"
+                          />
+                          <span className="text-sm font-mono text-gray-500">{settings.bgColor}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">{t('finderColor')} (Simulated)</label>
+                         <div className="flex items-center gap-2">
+                          <input 
+                            type="color" 
+                            value={settings.finderColor} 
+                            onChange={(e) => updateSetting('finderColor', e.target.value)}
+                            className="h-10 w-14 rounded cursor-pointer"
+                          />
+                          <span className="text-sm font-mono text-gray-500">{settings.finderColor}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">{t('errCorrection')}</label>
+                        <select 
+                          value={settings.level} 
+                          onChange={(e) => updateSetting('level', e.target.value)}
+                          className="w-full p-2 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600"
+                        >
+                          <option value="L">Level L (7%)</option>
+                          <option value="M">Level M (15%)</option>
+                          <option value="Q">Level Q (25%)</option>
+                          <option value="H">Level H (30%)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">{t('shape')}</label>
+                         <select 
+                          value={settings.shape} 
+                          onChange={(e) => updateSetting('shape', e.target.value)}
+                          className="w-full p-2 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600"
+                        >
+                          <option value="square">Square (Default)</option>
+                          <option value="dots">Dots (Simulated)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                     <div className="flex items-center gap-2">
+                       <input 
+                        type="checkbox" 
+                        id="includeMargin" 
+                        checked={settings.includeMargin} 
+                        onChange={(e) => updateSetting('includeMargin', e.target.checked)}
+                        className="w-4 h-4 text-blue-600 rounded"
+                       />
+                       <label htmlFor="includeMargin" className="text-sm font-medium">{t('quietZone')}</label>
+                     </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="lg:col-span-5">
+              <div className="sticky top-6 bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 border border-gray-100 dark:border-gray-700 flex flex-col items-center">
+                <div className="w-full flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-bold">{t('preview')}</h2>
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs uppercase font-semibold text-gray-500">
+                      <input 
+                        type="checkbox" 
+                        checked={realtimePreview} 
+                        onChange={(e) => setRealtimePreview(e.target.checked)} 
+                        className="rounded text-blue-600 focus:ring-blue-500"
+                      />
+                      {t('realtimePreview')}
+                    </label>
+                  </div>
+                </div>
+                
+                <div 
+                  ref={qrCanvasRef}
+                  className="p-4 bg-white rounded-lg shadow-inner border border-gray-200 flex justify-center items-center"
+                  style={{ 
+                    minHeight: '280px', 
+                    minWidth: '280px',
+                  }}
+                >
+                   <QRCodeCanvas
+                      key={previewKey}
+                      value={displayParams.text || 'https://example.com'}
+                      size={256}
+                      bgColor={displayParams.bgColor}
+                      fgColor={displayParams.fgColor}
+                      level={displayParams.level}
+                      includeMargin={displayParams.includeMargin}
+                    />
+                </div>
+
+                {!realtimePreview && (
+                   <button 
+                      onClick={triggerManualGenerate}
+                      className="mt-4 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold flex items-center justify-center gap-2 transition-transform active:scale-95"
+                    >
+                     <RefreshCw size={20} /> {t('generate')}
+                   </button>
+                )}
+
+                <div className="grid grid-cols-2 gap-3 w-full mt-6">
+                  <button 
+                    onClick={handleVerify}
+                    disabled={!settings.text}
+                    className="flex items-center justify-center gap-2 px-4 py-2 border-2 border-green-500 text-green-600 dark:text-green-400 dark:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <CheckCircle2 size={18} /> {t('verify')}
+                  </button>
+                  <button 
+                    onClick={downloadQR}
+                    disabled={!settings.text}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:opacity-90 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Download size={18} /> {t('download')}
+                  </button>
+                </div>
+
+                <div className="mt-4 text-xs text-gray-400 text-center max-w-xs">
+                  {displayParams.level} ECC • {displayParams.text.length} chars
+                </div>
+              </div>
+            </div>
+
+          </div>
+        );
+      };
+
+      const App = () => {
+        const [activeTab, setActiveTab] = useState(Tab.READ);
+        const [lang, setLang] = useState(Language.EN);
+        const [theme, setTheme] = useState(Theme.LIGHT);
+        const [verificationImage, setVerificationImage] = useState(null);
+        const [resetKey, setResetKey] = useState(0);
+
+        useEffect(() => {
+          if (theme === Theme.DARK) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        }, [theme]);
+
+        const toggleTheme = () => {
+          setTheme(prev => prev === Theme.LIGHT ? Theme.DARK : Theme.LIGHT);
+        };
+
+        const toggleLang = () => {
+          setLang(prev => prev === Language.EN ? Language.JP : Language.EN);
+        };
+
+        const handleVerifyRequest = (image) => {
+          setVerificationImage(image);
+          setActiveTab(Tab.READ);
+          setTimeout(() => alert(TRANSLATIONS[lang]['verificationSuccess']), 100);
+        };
+
+        const handleReset = () => {
+          if (confirm(lang === Language.EN ? 'Reset all data?' : 'すべてのデータをリセットしますか？')) {
+              setResetKey(prev => prev + 1);
+              setVerificationImage(null);
+              setActiveTab(Tab.READ);
+          }
+        };
+
+        const t = (key) => TRANSLATIONS[lang][key];
+
+        return (
+          <div className="min-h-screen flex flex-col font-sans transition-colors duration-200">
+            <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="bg-blue-600 p-2 rounded-lg text-white">
+                    <QrCode size={24} />
+                  </div>
+                  <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
+                    {t('appTitle')}
+                  </h1>
+                </div>
+
+                <div className="flex items-center gap-3">
+                   <button 
+                    onClick={handleReset}
+                    className="p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-colors"
+                    aria-label="Reset"
+                    title={t('reset')}
+                  >
+                    <RotateCcw size={20} />
+                  </button>
+                  <div className="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-1"></div>
+                   <button 
+                    onClick={toggleLang}
+                    className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors"
+                    aria-label="Toggle Language"
+                  >
+                    <div className="flex items-center gap-1 text-sm font-medium">
+                      <Languages size={18} />
+                      <span>{lang === Language.EN ? 'EN' : 'JP'}</span>
+                    </div>
+                  </button>
+                  <button 
+                    onClick={toggleTheme}
+                    className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors"
+                    aria-label="Toggle Theme"
+                  >
+                    {theme === Theme.LIGHT ? <Moon size={20} /> : <Sun size={20} />}
+                  </button>
+                </div>
+              </div>
+            </header>
+
+            <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex gap-8">
+                <button
+                  onClick={() => setActiveTab(Tab.READ)}
+                  className={`flex items-center gap-2 py-4 border-b-2 text-sm font-medium transition-colors ${
+                    activeTab === Tab.READ 
+                      ? 'border-blue-600 text-blue-600 dark:text-blue-400' 
+                      : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                  }`}
+                >
+                  <ScanLine size={18} />
+                  {t('tabRead')}
+                </button>
+                <button
+                  onClick={() => setActiveTab(Tab.GENERATE)}
+                  className={`flex items-center gap-2 py-4 border-b-2 text-sm font-medium transition-colors ${
+                    activeTab === Tab.GENERATE 
+                      ? 'border-blue-600 text-blue-600 dark:text-blue-400' 
+                      : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                  }`}
+                >
+                  <QrCode size={18} />
+                  {t('tabGen')}
+                </button>
+              </div>
+            </div>
+
+            <main className="flex-1 bg-gray-50 dark:bg-gray-950 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+              <div className={activeTab === Tab.READ ? 'block' : 'hidden'}>
+                <QRReader key={`reader-${resetKey}`} lang={lang} initialImage={verificationImage} />
+              </div>
+              
+              <div className={activeTab === Tab.GENERATE ? 'block' : 'hidden'}>
+                <QRGenerator key={`gen-${resetKey}`} lang={lang} onVerify={handleVerifyRequest} />
+              </div>
+            </main>
+          </div>
+        );
+      };
+
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(<App />);
+    </script>
+    
+    <!-- File Protocol Warning Script -->
+    <script>
+      if (window.location.protocol === 'file:') {
+        const warningDiv = document.createElement('div');
+        warningDiv.style.cssText = 'position:fixed;top:0;left:0;width:100%;background:#ef4444;color:white;padding:12px;text-align:center;z-index:9999;font-weight:bold;';
+        warningDiv.innerHTML = `
+          ⚠️ Warning: You are opening this file directly (file://). 
+          Modern browsers block external module imports in this mode. 
+          Please use a local server (e.g., VS Code "Live Server" extension, or "python3 -m http.server") or upload to GitHub Pages.
+        `;
+        document.body.prepend(warningDiv);
+      }
+    </script>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
