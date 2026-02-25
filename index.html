@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>QuickQReader</title>
-    
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -25,16 +25,16 @@
     <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
-    
+
     <!-- Babel for JSX -->
     <script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
-    
+
     <!-- QR Libraries -->
     <!-- jsQR for reading -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- qrcode for generating (Using cdnjs for better stability) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.1/qrcode.min.js"></script>
-    
+
     <!-- Utilities -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -44,7 +44,10 @@
       body { font-family: 'Inter', sans-serif; }
       .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
       @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+      .animate-slide-up { animation: slideUp 0.25s ease-out; }
+      @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       canvas { max-width: 100%; height: auto; }
+      .drop-active { outline: 3px dashed #3b82f6 !important; outline-offset: -3px; background-color: rgba(59,130,246,0.05) !important; }
     </style>
   <script type="importmap">
 {
@@ -74,7 +77,7 @@
       // --- Icons ---
       const Icons = {
         Camera: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>,
-        Upload: (props) => <svg {...props} xmlns="http://www.w3./2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>,
+        Upload: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>,
         Copy: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>,
         Share2: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg>,
         AlertCircle: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>,
@@ -91,7 +94,21 @@
         QrCode: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></svg>,
         ScanLine: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/></svg>,
         RotateCcw: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>,
-        FileCode: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="m9 13 3 3-3 3"/><path d="m15 19-3-3 3-3"/></svg>
+        FileCode: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="m9 13 3 3-3 3"/><path d="m15 19-3-3 3-3"/></svg>,
+        // New Icons
+        Clock: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+        X: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>,
+        ExternalLink: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>,
+        Mail: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>,
+        Phone: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.99 9 19.79 19.79 0 0 1 1.93 .37 2 2 0 0 1 3.91 0h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>,
+        MapPin: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>,
+        Wifi: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" x2="12.01" y1="20" y2="20"/></svg>,
+        MessageSquare: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
+        UserPlus: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>,
+        Link: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>,
+        Type: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/></svg>,
+        Eye: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>,
+        EyeOff: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>,
       };
 
       // --- Constants & Types ---
@@ -118,6 +135,7 @@
           uploadImage: 'Upload File',
           urlImage: 'From URL',
           dragDrop: 'Drag & Drop or Click to Upload',
+          dragDropActive: 'Drop image here to scan',
           noQrFound: 'No QR code found in image.',
           scannedResult: 'Scanned Result',
           copy: 'Copy',
@@ -152,6 +170,38 @@
           pasteError: 'Could not paste. Please allow clipboard access or type manually.',
           libraryError: 'QR Library not loaded. Please check internet connection.',
           trademark: 'QR Code is a registered trademark of DENSO WAVE INCORPORATED.',
+          // New keys
+          scanHistoryTitle: 'Recent Scans',
+          clearHistory: 'Clear',
+          noHistory: 'No recent scans.',
+          templates: 'Quick Templates',
+          charCount: 'chars',
+          wifiSsid: 'Network Name (SSID)',
+          wifiPassword: 'Password',
+          wifiEncryption: 'Encryption',
+          wifiHidden: 'Hidden Network',
+          sendEmail: 'Send Email',
+          callPhone: 'Call',
+          sendSms: 'Send SMS',
+          openMap: 'Open Map',
+          saveContact: 'Save Contact',
+          typeUrl: 'URL',
+          typeEmail: 'Email',
+          typePhone: 'Phone',
+          typeSms: 'SMS',
+          typeWifi: 'WiFi',
+          typeVcard: 'Contact',
+          typeGeo: 'Location',
+          typeText: 'Text',
+          cancelBtn: 'Cancel',
+          confirmResetMsg: 'Reset all data? This cannot be undone.',
+          confirmResetBtn: 'Reset',
+          templateUrl: 'URL',
+          templateWifi: 'WiFi',
+          templateEmail: 'Email',
+          templatePhone: 'Phone',
+          templateText: 'Text',
+          wifiEncNone: 'None',
         },
         [Language.JP]: {
           appTitle: 'クイックQリーダー',
@@ -161,6 +211,7 @@
           uploadImage: 'ファイルアップロード',
           urlImage: 'URLから読み込み',
           dragDrop: 'ドラッグ＆ドロップ または クリック',
+          dragDropActive: 'ここに画像をドロップ',
           noQrFound: 'QRコードが見つかりませんでした。',
           scannedResult: 'スキャン結果',
           copy: 'コピー',
@@ -195,8 +246,110 @@
           pasteError: '貼り付けできませんでした。クリップボードのアクセスを許可するか、手動で入力してください。',
           libraryError: 'QRライブラリが読み込めません。インターネット接続を確認してください。',
           trademark: 'QRコードは株式会社デンソーウェーブの登録商標です。',
+          // New keys
+          scanHistoryTitle: '最近のスキャン',
+          clearHistory: 'クリア',
+          noHistory: 'スキャン履歴がありません。',
+          templates: 'テンプレート',
+          charCount: '文字',
+          wifiSsid: 'ネットワーク名 (SSID)',
+          wifiPassword: 'パスワード',
+          wifiEncryption: '暗号化',
+          wifiHidden: '非表示ネットワーク',
+          sendEmail: 'メール送信',
+          callPhone: '電話する',
+          sendSms: 'SMS送信',
+          openMap: 'マップを開く',
+          saveContact: '連絡先に保存',
+          typeUrl: 'URL',
+          typeEmail: 'メール',
+          typePhone: '電話',
+          typeSms: 'SMS',
+          typeWifi: 'WiFi',
+          typeVcard: '連絡先',
+          typeGeo: '位置情報',
+          typeText: 'テキスト',
+          cancelBtn: 'キャンセル',
+          confirmResetMsg: 'すべてのデータをリセットしますか？この操作は元に戻せません。',
+          confirmResetBtn: 'リセット',
+          templateUrl: 'URL',
+          templateWifi: 'WiFi',
+          templateEmail: 'メール',
+          templatePhone: '電話',
+          templateText: 'テキスト',
+          wifiEncNone: 'なし',
         }
       };
+
+      // --- QR Type Detection ---
+      const detectQRType = (text) => {
+        if (!text) return 'text';
+        if (/^https?:\/\//i.test(text)) return 'url';
+        if (/^mailto:/i.test(text)) return 'email';
+        if (/^tel:/i.test(text)) return 'phone';
+        if (/^sms:/i.test(text)) return 'sms';
+        if (/^WIFI:/i.test(text)) return 'wifi';
+        if (/^BEGIN:VCARD/i.test(text)) return 'vcard';
+        if (/^geo:/i.test(text)) return 'geo';
+        if (/^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(text)) return 'email';
+        return 'text';
+      };
+
+      const QR_TYPE_META = {
+        url:    { color: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300', key: 'typeUrl' },
+        email:  { color: 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300', key: 'typeEmail' },
+        phone:  { color: 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300', key: 'typePhone' },
+        sms:    { color: 'bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300', key: 'typeSms' },
+        wifi:   { color: 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-700 dark:text-cyan-300', key: 'typeWifi' },
+        vcard:  { color: 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300', key: 'typeVcard' },
+        geo:    { color: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300', key: 'typeGeo' },
+        text:   { color: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300', key: 'typeText' },
+      };
+
+      // --- Toast System ---
+      const ToastContainer = ({ toasts }) => (
+        <div className="fixed bottom-5 right-5 flex flex-col gap-2 z-[100] pointer-events-none">
+          {toasts.map(toast => (
+            <div
+              key={toast.id}
+              className={`flex items-center gap-2 px-4 py-3 rounded-xl shadow-2xl text-sm font-medium animate-slide-up max-w-xs ${
+                toast.type === 'success' ? 'bg-green-600 text-white' :
+                toast.type === 'error'   ? 'bg-red-600 text-white' :
+                toast.type === 'info'    ? 'bg-blue-600 text-white' :
+                                           'bg-gray-900 text-white'
+              }`}
+            >
+              {toast.type === 'success' && <Icons.CheckCircle2 size={16} className="shrink-0" />}
+              {toast.type === 'error'   && <Icons.AlertCircle size={16} className="shrink-0" />}
+              {toast.type === 'info'    && <Icons.ScanLine size={16} className="shrink-0" />}
+              <span>{toast.message}</span>
+            </div>
+          ))}
+        </div>
+      );
+
+      // --- Confirm Dialog ---
+      const ConfirmDialog = ({ message, confirmLabel, cancelLabel, onConfirm, onCancel }) => (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200] animate-fade-in">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 max-w-sm w-full mx-4 animate-slide-up">
+            <p className="text-gray-700 dark:text-gray-200 mb-6 leading-relaxed">{message}</p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={onCancel}
+                className="px-5 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors font-medium"
+              >
+                {cancelLabel}
+              </button>
+              <button
+                onClick={onConfirm}
+                className="px-5 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors font-medium"
+              >
+                {confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
 
       // --- QRCodeCanvas Component ---
       const QRCodeCanvas = ({ value, size, bgColor, fgColor, level, includeMargin, onError }) => {
@@ -206,7 +359,6 @@
           if (!value) return;
 
           const generate = () => {
-             // Check if library is available
              if (window.QRCode && typeof window.QRCode.toCanvas === 'function') {
                if (canvasRef.current) {
                   try {
@@ -248,7 +400,7 @@
               }, 1000);
             }
           };
-          
+
           generate();
         }, [value, size, bgColor, fgColor, level, includeMargin, onError]);
 
@@ -256,18 +408,29 @@
       };
 
       // --- QRReader Component ---
-      const QRReader = ({ lang, initialImage }) => {
+      const QRReader = ({ lang, initialImage, showToast }) => {
         const t = (key) => TRANSLATIONS[lang][key];
         const [activeMode, setActiveMode] = useState('camera');
         const [scanResult, setScanResult] = useState(null);
         const [error, setError] = useState(null);
         const [isCopied, setIsCopied] = useState(false);
         const [previewImage, setPreviewImage] = useState(null);
-        
+        const [scanHistory, setScanHistory] = useState([]);
+        const [isDragging, setIsDragging] = useState(false);
+
         const videoRef = useRef(null);
         const canvasRef = useRef(null);
+        const dropZoneRef = useRef(null);
         const [isCameraActive, setIsCameraActive] = useState(false);
         const requestRef = useRef(0);
+
+        const addToHistory = useCallback((text) => {
+          setScanHistory(prev => {
+            const entry = { text, time: Date.now() };
+            const filtered = prev.filter(h => h.text !== text);
+            return [entry, ...filtered].slice(0, 10);
+          });
+        }, []);
 
         const scanImage = useCallback((src) => {
           const img = new Image();
@@ -279,7 +442,6 @@
             if (ctx) {
               ctx.drawImage(img, 0, 0);
               const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-              // Check if jsQR is loaded
               if (window.jsQR) {
                 const code = window.jsQR(imageData.data, imageData.width, imageData.height, {
                     inversionAttempts: "dontInvert",
@@ -287,6 +449,7 @@
                 if (code) {
                   setScanResult(code.data);
                   setError(null);
+                  addToHistory(code.data);
                 } else {
                   setError(t('noQrFound'));
                   setScanResult(null);
@@ -298,7 +461,7 @@
           };
           img.onerror = () => setError(t('noQrFound'));
           img.src = src;
-        }, [t]);
+        }, [t, addToHistory]);
 
         useEffect(() => {
           if (initialImage) {
@@ -334,26 +497,25 @@
                 const code = window.jsQR(imageData.data, imageData.width, imageData.height, {
                   inversionAttempts: "dontInvert",
                 });
-
                 if (code) {
                   setScanResult(code.data);
                   setError(null);
+                  addToHistory(code.data);
                 }
               }
             }
           }
           requestRef.current = requestAnimationFrame(tick);
-        }, []);
+        }, [addToHistory]);
 
         const startCamera = async () => {
           setError(null);
           setPreviewImage(null);
           setScanResult(null);
 
-          // SECURITY CHECK: Camera API requires HTTPS or localhost (Secure Context)
           if (window.location.protocol === 'file:') {
-            setError(lang === 'jp' 
-              ? "セキュリティ上の制限により、ローカルファイル(file://)からカメラを起動することはできません。GitHub Pagesにアップロードするか、ローカルサーバー(localhost)を使用してください。" 
+            setError(lang === 'jp'
+              ? "セキュリティ上の制限により、ローカルファイル(file://)からカメラを起動することはできません。GitHub Pagesにアップロードするか、ローカルサーバー(localhost)を使用してください。"
               : "Camera access is restricted on local files (file://). Please upload to GitHub Pages or use a local server (http://localhost)."
             );
             return;
@@ -384,14 +546,11 @@
           return () => stopCamera();
         }, [stopCamera, activeMode]);
 
-        const handleFileUpload = (e) => {
+        const loadImageFile = (file) => {
+          if (!file || !file.type.startsWith('image/')) return;
           setError(null);
           setScanResult(null);
           setPreviewImage(null);
-          
-          const file = e.target.files?.[0];
-          if (!file) return;
-
           const reader = new FileReader();
           reader.onload = (event) => {
             const result = event.target?.result;
@@ -401,29 +560,147 @@
           reader.readAsDataURL(file);
         };
 
+        const handleFileUpload = (e) => {
+          loadImageFile(e.target.files?.[0]);
+        };
+
+        // Drag & Drop handlers
+        const handleDragOver = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsDragging(true);
+        };
+        const handleDragLeave = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsDragging(false);
+        };
+        const handleDrop = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsDragging(false);
+          const file = e.dataTransfer.files?.[0];
+          if (file) {
+            setActiveMode('file');
+            loadImageFile(file);
+          }
+        };
+
         const copyToClipboard = () => {
           if (scanResult) {
             navigator.clipboard.writeText(scanResult);
             setIsCopied(true);
             setTimeout(() => setIsCopied(false), 2000);
+            if (showToast) showToast(t('copied'), 'success');
           }
         };
 
         const shareResult = async () => {
           if (scanResult && navigator.share) {
             try {
-              await navigator.share({
-                title: 'Scanned QR Code',
-                text: scanResult,
-              });
+              await navigator.share({ title: 'Scanned QR Code', text: scanResult });
             } catch (err) {
               console.log('Share canceled');
             }
           }
         };
 
+        const qrType = scanResult ? detectQRType(scanResult) : 'text';
+        const typeMeta = QR_TYPE_META[qrType] || QR_TYPE_META.text;
+
+        const getActionButton = () => {
+          if (!scanResult) return null;
+          switch (qrType) {
+            case 'url':
+              return (
+                <a href={scanResult} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors">
+                  <Icons.ExternalLink size={15} /> Open Link
+                </a>
+              );
+            case 'email': {
+              const href = /^mailto:/i.test(scanResult) ? scanResult : `mailto:${scanResult}`;
+              return (
+                <a href={href}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors">
+                  <Icons.Mail size={15} /> {t('sendEmail')}
+                </a>
+              );
+            }
+            case 'phone': {
+              const href = /^tel:/i.test(scanResult) ? scanResult : `tel:${scanResult}`;
+              return (
+                <a href={href}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors">
+                  <Icons.Phone size={15} /> {t('callPhone')}
+                </a>
+              );
+            }
+            case 'sms': {
+              return (
+                <a href={scanResult}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors">
+                  <Icons.MessageSquare size={15} /> {t('sendSms')}
+                </a>
+              );
+            }
+            case 'geo': {
+              const coords = scanResult.replace(/^geo:/i, '').split(',').slice(0, 2).join(',');
+              return (
+                <a href={`https://maps.google.com/?q=${coords}`} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-colors">
+                  <Icons.MapPin size={15} /> {t('openMap')}
+                </a>
+              );
+            }
+            case 'vcard':
+              return (
+                <button
+                  onClick={() => {
+                    const blob = new Blob([scanResult], { type: 'text/vcard' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'contact.vcf';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm font-medium transition-colors">
+                  <Icons.UserPlus size={15} /> {t('saveContact')}
+                </button>
+              );
+            case 'wifi': {
+              const ssidMatch = scanResult.match(/S:([^;]*)/);
+              const ssid = ssidMatch ? ssidMatch[1] : '';
+              return (
+                <span className="flex items-center gap-1.5 px-3 py-2 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 rounded-lg text-sm font-medium">
+                  <Icons.Wifi size={15} /> {ssid || 'WiFi QR'}
+                </span>
+              );
+            }
+            default:
+              return null;
+          }
+        };
+
         return (
-          <div className="flex flex-col gap-6 max-w-3xl mx-auto p-4">
+          <div
+            className={`flex flex-col gap-5 max-w-3xl mx-auto p-4 rounded-xl transition-colors ${isDragging ? 'drop-active' : ''}`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            {/* Drag overlay hint */}
+            {isDragging && (
+              <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center">
+                <div className="bg-blue-600/90 text-white px-8 py-6 rounded-2xl shadow-2xl text-xl font-bold flex flex-col items-center gap-3">
+                  <Icons.Upload size={40} />
+                  {t('dragDropActive')}
+                </div>
+              </div>
+            )}
+
+            {/* Mode Switcher */}
             <div className="flex gap-2 justify-center bg-gray-200 dark:bg-gray-800 p-1 rounded-lg self-center">
               <button
                 onClick={() => setActiveMode('camera')}
@@ -439,21 +716,31 @@
               </button>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 min-h-[300px] flex flex-col items-center justify-center border border-gray-100 dark:border-gray-700">
+            {/* Input Area */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 min-h-[280px] flex flex-col items-center justify-center border border-gray-100 dark:border-gray-700">
               {activeMode === 'camera' && (
                 <div className="w-full flex flex-col items-center gap-4">
                   <div className="relative w-full max-w-md aspect-square bg-black rounded-lg overflow-hidden">
                      <video ref={videoRef} className="w-full h-full object-cover" />
                      <canvas ref={canvasRef} className="hidden" />
                      {!isCameraActive && (
-                       <div className="absolute inset-0 flex items-center justify-center text-white/50">
-                          <Icons.Camera size={48} />
+                       <div className="absolute inset-0 flex items-center justify-center text-white/40">
+                          <Icons.Camera size={64} />
+                       </div>
+                     )}
+                     {isCameraActive && (
+                       <div className="absolute inset-0 pointer-events-none">
+                         <div className="absolute inset-[20%] border-2 border-white/60 rounded-lg"></div>
+                         <div className="absolute top-[20%] left-[20%] w-5 h-5 border-t-2 border-l-2 border-blue-400 rounded-tl"></div>
+                         <div className="absolute top-[20%] right-[20%] w-5 h-5 border-t-2 border-r-2 border-blue-400 rounded-tr"></div>
+                         <div className="absolute bottom-[20%] left-[20%] w-5 h-5 border-b-2 border-l-2 border-blue-400 rounded-bl"></div>
+                         <div className="absolute bottom-[20%] right-[20%] w-5 h-5 border-b-2 border-r-2 border-blue-400 rounded-br"></div>
                        </div>
                      )}
                   </div>
                   <button
                     onClick={isCameraActive ? stopCamera : startCamera}
-                    className={`px-6 py-2 rounded-full font-medium text-white transition-colors ${isCameraActive ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-600 hover:bg-blue-700'}`}
+                    className={`px-8 py-2.5 rounded-full font-medium text-white transition-colors shadow ${isCameraActive ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-600 hover:bg-blue-700'}`}
                   >
                     {isCameraActive ? t('stopCamera') : t('startCamera')}
                   </button>
@@ -462,10 +749,10 @@
 
               {activeMode === 'file' && (
                 <div className="w-full max-w-md flex flex-col items-center gap-4">
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <Icons.Upload className="w-8 h-8 mb-2 text-gray-400" />
-                      <p className="mb-2 text-sm text-gray-500 dark:text-gray-400"><span className="font-semibold">{t('dragDrop')}</span></p>
+                  <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-xl cursor-pointer bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <Icons.Upload className="w-8 h-8 text-gray-400" />
+                      <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{t('dragDrop')}</p>
                     </div>
                     <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />
                   </label>
@@ -480,42 +767,79 @@
               )}
 
               {error && (
-                <div className="mt-4 p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg flex items-center gap-2 animate-fade-in">
-                  <Icons.AlertCircle size={18} />
+                <div className="mt-4 p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg flex items-center gap-2 animate-fade-in w-full max-w-md">
+                  <Icons.AlertCircle size={18} className="shrink-0" />
                   <span>{error}</span>
                 </div>
               )}
             </div>
 
+            {/* Scan Result */}
             {scanResult && (
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-green-100 dark:border-green-900/30 animate-fade-in">
-                <h3 className="text-lg font-semibold mb-3 text-gray-700 dark:text-gray-200">{t('scannedResult')}</h3>
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-green-100 dark:border-green-900/30 animate-slide-up">
+                <div className="flex items-center gap-2 mb-3 flex-wrap">
+                  <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">{t('scannedResult')}</h3>
+                  <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${typeMeta.color}`}>
+                    {t(typeMeta.key)}
+                  </span>
+                </div>
                 <div className="bg-gray-100 dark:bg-gray-950 p-4 rounded-lg font-mono break-all text-sm mb-4 border border-gray-200 dark:border-gray-700">
                   {scanResult}
                 </div>
-                <div className="flex gap-3 flex-wrap">
-                  <button 
+                <div className="flex gap-2 flex-wrap items-center">
+                  <button
                     onClick={copyToClipboard}
                     className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
                   >
-                    <Icons.Copy size={16} /> {isCopied ? t('copied') : t('copy')}
+                    <Icons.Copy size={15} /> {isCopied ? t('copied') : t('copy')}
                   </button>
-                  <button 
-                    onClick={shareResult}
-                    className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
-                  >
-                    <Icons.Share2 size={16} /> {t('share')}
-                  </button>
-                  {/^https?:\/\//.test(scanResult) && (
-                    <a 
-                      href={scanResult} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="ml-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors truncate max-w-[150px]"
+                  {navigator.share && (
+                    <button
+                      onClick={shareResult}
+                      className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
                     >
-                      Open Link
-                    </a>
+                      <Icons.Share2 size={15} /> {t('share')}
+                    </button>
                   )}
+                  <div className="ml-auto">
+                    {getActionButton()}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Scan History */}
+            {scanHistory.length > 0 && (
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 border border-gray-100 dark:border-gray-700 animate-fade-in">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="font-semibold text-sm text-gray-600 dark:text-gray-300 flex items-center gap-1.5">
+                    <Icons.Clock size={15} /> {t('scanHistoryTitle')}
+                  </h3>
+                  <button
+                    onClick={() => setScanHistory([])}
+                    className="text-xs text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors flex items-center gap-1"
+                  >
+                    <Icons.X size={12} /> {t('clearHistory')}
+                  </button>
+                </div>
+                <div className="space-y-1.5">
+                  {scanHistory.map((entry) => {
+                    const etype = detectQRType(entry.text);
+                    const emeta = QR_TYPE_META[etype] || QR_TYPE_META.text;
+                    return (
+                      <button
+                        key={entry.time}
+                        onClick={() => setScanResult(entry.text)}
+                        className="w-full text-left p-2.5 rounded-lg bg-gray-50 dark:bg-gray-700/60 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm flex items-center gap-2 group"
+                      >
+                        <Icons.Clock size={13} className="text-gray-400 shrink-0" />
+                        <span className="flex-1 font-mono truncate text-gray-600 dark:text-gray-300 text-xs">{entry.text}</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold shrink-0 ${emeta.color}`}>
+                          {TRANSLATIONS[lang][emeta.key]}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -524,9 +848,9 @@
       };
 
       // --- QRGenerator Component ---
-      const QRGenerator = ({ lang, onVerify }) => {
+      const QRGenerator = ({ lang, onVerify, showToast }) => {
         const t = (key) => TRANSLATIONS[lang][key];
-        
+
         const [settings, setSettings] = useState(DEFAULT_QR_SETTINGS);
         const [inputText, setInputText] = useState('');
         const [csvRecords, setCsvRecords] = useState([]);
@@ -536,8 +860,20 @@
         const [previewKey, setPreviewKey] = useState(0);
         const [isZipping, setIsZipping] = useState(false);
         const [libError, setLibError] = useState(false);
+        const [activeTemplate, setActiveTemplate] = useState('url');
+        const [wifiForm, setWifiForm] = useState({ ssid: '', password: '', encryption: 'WPA', hidden: false });
+        const [showWifiPw, setShowWifiPw] = useState(false);
 
         const qrCanvasRef = useRef(null);
+
+        // Sync WiFi form → inputText
+        useEffect(() => {
+          if (activeTemplate === 'wifi' && wifiForm.ssid) {
+            const wifiString = `WIFI:T:${wifiForm.encryption};S:${wifiForm.ssid};P:${wifiForm.password};H:${wifiForm.hidden ? 'true' : 'false'};;`;
+            setInputText(wifiString);
+            setCsvRecords([]);
+          }
+        }, [wifiForm, activeTemplate]);
 
         useEffect(() => {
           if (csvRecords.length > 0) {
@@ -546,6 +882,20 @@
             setSettings(prev => ({ ...prev, text: inputText }));
           }
         }, [csvRecords, currentCsvIndex, inputText]);
+
+        const handleTemplateChange = (tpl) => {
+          setActiveTemplate(tpl);
+          setCsvRecords([]);
+          if (tpl === 'url') setInputText('https://');
+          else if (tpl === 'email') setInputText('mailto:');
+          else if (tpl === 'phone') setInputText('tel:+');
+          else if (tpl === 'sms') setInputText('sms:+');
+          else if (tpl === 'text') setInputText('');
+          else if (tpl === 'wifi') {
+            setWifiForm({ ssid: '', password: '', encryption: 'WPA', hidden: false });
+            setInputText('');
+          }
+        };
 
         const handleCsvUpload = (e) => {
           const file = e.target.files?.[0];
@@ -556,10 +906,11 @@
                   .flat()
                   .filter((cell) => typeof cell === 'string' && cell.trim() !== '')
                   .map((text, index) => ({ id: index, data: text }));
-                
+
                 if (records.length > 0) {
                   setCsvRecords(records);
                   setCurrentCsvIndex(0);
+                  setActiveTemplate('');
                 }
               }
             });
@@ -571,9 +922,10 @@
             const text = await navigator.clipboard.readText();
             setInputText(text);
             setCsvRecords([]);
+            setActiveTemplate('');
           } catch (err) {
             console.error('Paste failed', err);
-            alert(t('pasteError'));
+            if (showToast) showToast(t('pasteError'), 'error');
           }
         };
 
@@ -588,20 +940,21 @@
               document.body.appendChild(a);
               a.click();
               document.body.removeChild(a);
+              if (showToast) showToast(t('download'), 'success');
             } catch (e) {
               console.error("Download failed", e);
-              alert("Failed to download image.");
+              if (showToast) showToast('Failed to download image.', 'error');
             }
           } else {
-              alert("QR Code not rendered yet.");
+            if (showToast) showToast('QR Code not rendered yet.', 'error');
           }
         };
 
         const downloadSVG = () => {
           if (!settings.text) return;
-          
+
           if (!window.QRCode || typeof window.QRCode.toString !== 'function') {
-            alert(t('libraryError'));
+            if (showToast) showToast(t('libraryError'), 'error');
             return;
           }
 
@@ -620,10 +973,10 @@
             window.QRCode.toString(settings.text, opts, (err, svgString) => {
               if (err) {
                 console.error(err);
-                alert("SVG Generation Error");
+                if (showToast) showToast('SVG Generation Error', 'error');
                 return;
               }
-              
+
               const blob = new Blob([svgString], { type: 'image/svg+xml' });
               const url = URL.createObjectURL(blob);
               const a = document.createElement('a');
@@ -633,10 +986,11 @@
               a.click();
               document.body.removeChild(a);
               URL.revokeObjectURL(url);
+              if (showToast) showToast(t('downloadSvg'), 'success');
             });
           } catch (e) {
             console.error(e);
-            alert("Failed to generate SVG.");
+            if (showToast) showToast('Failed to generate SVG.', 'error');
           }
         };
 
@@ -659,7 +1013,7 @@
                   },
                   width: 512,
                 });
-                
+
                 const base64Data = url.split(',')[1];
                 folder.file(`qr_${record.id + 1}.png`, base64Data, {base64: true});
               }
@@ -672,10 +1026,11 @@
               a.click();
               document.body.removeChild(a);
               URL.revokeObjectURL(a.href);
+              if (showToast) showToast(t('downloadZip'), 'success');
             }
           } catch (error) {
             console.error("ZIP Generation Error", error);
-            alert("Error generating ZIP file.");
+            if (showToast) showToast('Error generating ZIP file.', 'error');
           } finally {
             setIsZipping(false);
           }
@@ -690,13 +1045,9 @@
         };
 
         const updateSetting = (key, value) => {
-          setSettings(prev => {
-            const newSettings = { ...prev, [key]: value };
-            return newSettings;
-          });
+          setSettings(prev => ({ ...prev, [key]: value }));
         };
 
-        const displaySettings = realtimePreview ? settings : settings; 
         const [displayParams, setDisplayParams] = useState(DEFAULT_QR_SETTINGS);
 
         useEffect(() => {
@@ -710,27 +1061,58 @@
           setPreviewKey(prev => prev + 1);
         };
 
+        const TEMPLATE_LIST = [
+          { id: 'url', label: t('templateUrl'), icon: Icons.Link },
+          { id: 'wifi', label: t('templateWifi'), icon: Icons.Wifi },
+          { id: 'email', label: t('templateEmail'), icon: Icons.Mail },
+          { id: 'phone', label: t('templatePhone'), icon: Icons.Phone },
+          { id: 'text', label: t('templateText'), icon: Icons.Type },
+        ];
+
         return (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-6xl mx-auto p-4">
-            <div className="lg:col-span-7 space-y-6">
+            <div className="lg:col-span-7 space-y-5">
+              {/* Text Input Card */}
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-100 dark:border-gray-700">
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-lg font-bold">{t('inputText')}</h2>
                   <div className="flex gap-2">
-                    <label className="text-sm px-3 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 cursor-pointer rounded-md transition-colors flex items-center gap-1">
-                      {t('importCsv')}
+                    <label className="text-sm px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 cursor-pointer rounded-lg transition-colors flex items-center gap-1.5 font-medium">
+                      <Icons.FileArchive size={14} /> {t('importCsv')}
                       <input type="file" className="hidden" accept=".csv" onChange={handleCsvUpload} />
                     </label>
-                    <button onClick={handlePaste} className="text-sm px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-md hover:bg-blue-200 transition-colors">
-                      {t('paste')}
+                    <button onClick={handlePaste} className="text-sm px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors font-medium flex items-center gap-1.5">
+                      <Icons.Copy size={14} /> {t('paste')}
                     </button>
                   </div>
                 </div>
 
+                {/* Quick Templates */}
+                {csvRecords.length === 0 && (
+                  <div className="mb-4">
+                    <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{t('templates')}</div>
+                    <div className="flex gap-2 flex-wrap">
+                      {TEMPLATE_LIST.map(({ id, label, icon: Icon }) => (
+                        <button
+                          key={id}
+                          onClick={() => handleTemplateChange(id)}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                            activeTemplate === id
+                              ? 'bg-blue-600 text-white shadow-sm'
+                              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                          }`}
+                        >
+                          <Icon size={13} /> {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {csvRecords.length > 0 ? (
                   <div className="flex flex-col gap-4">
                     <div className="flex items-center gap-4 bg-gray-50 dark:bg-gray-900 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-                      <button 
+                      <button
                         disabled={currentCsvIndex === 0}
                         onClick={() => setCurrentCsvIndex(i => i - 1)}
                         className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full disabled:opacity-30"
@@ -741,7 +1123,7 @@
                         <div className="text-xs text-gray-500 uppercase font-bold">{t('csvNav')} {currentCsvIndex + 1} / {csvRecords.length}</div>
                         <div className="font-mono truncate mt-1">{csvRecords[currentCsvIndex].data}</div>
                       </div>
-                      <button 
+                      <button
                         disabled={currentCsvIndex === csvRecords.length - 1}
                         onClick={() => setCurrentCsvIndex(i => i + 1)}
                         className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full disabled:opacity-30"
@@ -749,7 +1131,12 @@
                         <Icons.SkipForward size={20} />
                       </button>
                     </div>
-                    
+                    <button
+                      onClick={() => { setCsvRecords([]); setActiveTemplate('url'); setInputText('https://'); }}
+                      className="text-sm text-gray-500 hover:text-red-500 transition-colors self-end flex items-center gap-1"
+                    >
+                      <Icons.X size={13} /> Clear CSV
+                    </button>
                     <button
                       onClick={handleZipDownload}
                       disabled={isZipping}
@@ -763,21 +1150,88 @@
                       {isZipping ? t('generatingZip') : t('downloadZip')}
                     </button>
                   </div>
+                ) : activeTemplate === 'wifi' ? (
+                  /* WiFi Form */
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">{t('wifiSsid')}</label>
+                      <input
+                        type="text"
+                        value={wifiForm.ssid}
+                        onChange={e => setWifiForm(f => ({ ...f, ssid: e.target.value }))}
+                        placeholder="MyNetwork"
+                        className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">{t('wifiPassword')}</label>
+                      <div className="relative">
+                        <input
+                          type={showWifiPw ? 'text' : 'password'}
+                          value={wifiForm.password}
+                          onChange={e => setWifiForm(f => ({ ...f, password: e.target.value }))}
+                          placeholder="••••••••"
+                          className="w-full p-3 pr-10 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowWifiPw(v => !v)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                        >
+                          {showWifiPw ? <Icons.EyeOff size={16} /> : <Icons.Eye size={16} />}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">{t('wifiEncryption')}</label>
+                        <select
+                          value={wifiForm.encryption}
+                          onChange={e => setWifiForm(f => ({ ...f, encryption: e.target.value }))}
+                          className="w-full p-2.5 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-sm"
+                        >
+                          <option value="WPA">WPA/WPA2</option>
+                          <option value="WEP">WEP</option>
+                          <option value="nopass">{t('wifiEncNone')}</option>
+                        </select>
+                      </div>
+                      <div className="flex items-end pb-2">
+                        <label className="flex items-center gap-2 cursor-pointer text-sm">
+                          <input
+                            type="checkbox"
+                            checked={wifiForm.hidden}
+                            onChange={e => setWifiForm(f => ({ ...f, hidden: e.target.checked }))}
+                            className="w-4 h-4 text-blue-600 rounded"
+                          />
+                          <span className="text-gray-600 dark:text-gray-300 font-medium">{t('wifiHidden')}</span>
+                        </label>
+                      </div>
+                    </div>
+                    {inputText && (
+                      <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <div className="text-xs text-gray-400 font-mono break-all">{inputText}</div>
+                      </div>
+                    )}
+                  </div>
                 ) : (
-                  <textarea
-                    value={inputText}
-                    onChange={(e) => {
-                      setInputText(e.target.value);
-                      setCsvRecords([]);
-                    }}
-                    placeholder="https://..."
-                    className="w-full h-32 p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"
-                  />
+                  <div>
+                    <textarea
+                      value={inputText}
+                      onChange={(e) => {
+                        setInputText(e.target.value);
+                        setCsvRecords([]);
+                      }}
+                      placeholder={activeTemplate === 'email' ? 'mailto:user@example.com' : activeTemplate === 'phone' ? 'tel:+1-234-567-8900' : 'https://...'}
+                      className="w-full h-32 p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none text-sm"
+                    />
+                    <div className="text-right text-xs text-gray-400 mt-1">{inputText.length} {t('charCount')}</div>
+                  </div>
                 )}
               </div>
 
+              {/* Settings Panel */}
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden border border-gray-100 dark:border-gray-700">
-                <button 
+                <button
                   onClick={() => setShowSettings(!showSettings)}
                   className="w-full flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
@@ -786,16 +1240,16 @@
                   </span>
                   <span className={`transform transition-transform ${showSettings ? 'rotate-180' : ''}`}>▼</span>
                 </button>
-                
+
                 {showSettings && (
                   <div className="p-6 space-y-6 animate-fade-in">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium mb-1">{t('color')}</label>
                         <div className="flex items-center gap-2">
-                          <input 
-                            type="color" 
-                            value={settings.fgColor} 
+                          <input
+                            type="color"
+                            value={settings.fgColor}
                             onChange={(e) => updateSetting('fgColor', e.target.value)}
                             className="h-10 w-14 rounded cursor-pointer"
                           />
@@ -805,9 +1259,9 @@
                       <div>
                         <label className="block text-sm font-medium mb-1">{t('bgColor')}</label>
                         <div className="flex items-center gap-2">
-                          <input 
-                            type="color" 
-                            value={settings.bgColor} 
+                          <input
+                            type="color"
+                            value={settings.bgColor}
                             onChange={(e) => updateSetting('bgColor', e.target.value)}
                             className="h-10 w-14 rounded cursor-pointer"
                           />
@@ -817,9 +1271,9 @@
                       <div>
                         <label className="block text-sm font-medium mb-1">{t('finderColor')} (Simulated)</label>
                          <div className="flex items-center gap-2">
-                          <input 
-                            type="color" 
-                            value={settings.finderColor} 
+                          <input
+                            type="color"
+                            value={settings.finderColor}
                             onChange={(e) => updateSetting('finderColor', e.target.value)}
                             className="h-10 w-14 rounded cursor-pointer"
                           />
@@ -831,8 +1285,8 @@
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium mb-1">{t('errCorrection')}</label>
-                        <select 
-                          value={settings.level} 
+                        <select
+                          value={settings.level}
                           onChange={(e) => updateSetting('level', e.target.value)}
                           className="w-full p-2 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600"
                         >
@@ -844,8 +1298,8 @@
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-1">{t('shape')}</label>
-                         <select 
-                          value={settings.shape} 
+                         <select
+                          value={settings.shape}
                           onChange={(e) => updateSetting('shape', e.target.value)}
                           className="w-full p-2 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600"
                         >
@@ -856,10 +1310,10 @@
                     </div>
 
                      <div className="flex items-center gap-2">
-                       <input 
-                        type="checkbox" 
-                        id="includeMargin" 
-                        checked={settings.includeMargin} 
+                       <input
+                        type="checkbox"
+                        id="includeMargin"
+                        checked={settings.includeMargin}
                         onChange={(e) => updateSetting('includeMargin', e.target.checked)}
                         className="w-4 h-4 text-blue-600 rounded"
                        />
@@ -870,30 +1324,28 @@
               </div>
             </div>
 
+            {/* Preview Panel */}
             <div className="lg:col-span-5">
               <div className="sticky top-6 bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 border border-gray-100 dark:border-gray-700 flex flex-col items-center">
-                <div className="w-full flex justify-between items-center mb-6">
+                <div className="w-full flex justify-between items-center mb-5">
                   <h2 className="text-xl font-bold">{t('preview')}</h2>
                   <div className="flex items-center gap-2">
                     <label className="flex items-center gap-2 cursor-pointer text-xs uppercase font-semibold text-gray-500">
-                      <input 
-                        type="checkbox" 
-                        checked={realtimePreview} 
-                        onChange={(e) => setRealtimePreview(e.target.checked)} 
+                      <input
+                        type="checkbox"
+                        checked={realtimePreview}
+                        onChange={(e) => setRealtimePreview(e.target.checked)}
                         className="rounded text-blue-600 focus:ring-blue-500"
                       />
                       {t('realtimePreview')}
                     </label>
                   </div>
                 </div>
-                
-                <div 
+
+                <div
                   ref={qrCanvasRef}
                   className="p-4 bg-white rounded-lg shadow-inner border border-gray-200 flex justify-center items-center relative"
-                  style={{ 
-                    minHeight: '280px', 
-                    minWidth: '280px',
-                  }}
+                  style={{ minHeight: '280px', minWidth: '280px' }}
                 >
                    {libError && (
                      <div className="absolute inset-0 flex items-center justify-center bg-red-50/90 text-red-500 text-center p-4">
@@ -913,7 +1365,7 @@
                 </div>
 
                 {!realtimePreview && (
-                   <button 
+                   <button
                       onClick={triggerManualGenerate}
                       className="mt-4 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold flex items-center justify-center gap-2 transition-transform active:scale-95"
                     >
@@ -921,22 +1373,22 @@
                    </button>
                 )}
 
-                <div className="grid grid-cols-2 gap-3 w-full mt-6">
-                  <button 
+                <div className="grid grid-cols-2 gap-3 w-full mt-5">
+                  <button
                     onClick={handleVerify}
                     disabled={!settings.text}
                     className="flex items-center justify-center gap-2 px-4 py-2 border-2 border-green-500 text-green-600 dark:text-green-400 dark:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Icons.CheckCircle2 size={18} /> {t('verify')}
                   </button>
-                  <button 
+                  <button
                     onClick={downloadQR}
                     disabled={!settings.text}
                     className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:opacity-90 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Icons.Download size={18} /> {t('download')}
+                    <Icons.Download size={18} /> PNG
                   </button>
-                  <button 
+                  <button
                     onClick={downloadSVG}
                     disabled={!settings.text}
                     className="col-span-2 flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -946,7 +1398,7 @@
                 </div>
 
                 <div className="mt-4 text-xs text-gray-400 text-center max-w-xs">
-                  {displayParams.level} ECC • {displayParams.text.length} chars
+                  {displayParams.level} ECC • {displayParams.text.length} {t('charCount')}
                 </div>
               </div>
             </div>
@@ -962,6 +1414,14 @@
         const [theme, setTheme] = useState(Theme.LIGHT);
         const [verificationImage, setVerificationImage] = useState(null);
         const [resetKey, setResetKey] = useState(0);
+        const [toasts, setToasts] = useState([]);
+        const [confirmDialog, setConfirmDialog] = useState(null);
+
+        const showToast = useCallback((message, type = 'success') => {
+          const id = Date.now() + Math.random();
+          setToasts(prev => [...prev, { id, message, type }]);
+          setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000);
+        }, []);
 
         useEffect(() => {
           if (theme === Theme.DARK) {
@@ -982,21 +1442,43 @@
         const handleVerifyRequest = (image) => {
           setVerificationImage(image);
           setActiveTab(Tab.READ);
-          setTimeout(() => alert(TRANSLATIONS[lang]['verificationSuccess']), 100);
+          showToast(TRANSLATIONS[lang]['verificationSuccess'], 'info');
         };
 
         const handleReset = () => {
-          if (confirm(lang === Language.EN ? 'Reset all data?' : 'すべてのデータをリセットしますか？')) {
+          setConfirmDialog({
+            message: TRANSLATIONS[lang]['confirmResetMsg'],
+            confirmLabel: TRANSLATIONS[lang]['confirmResetBtn'],
+            cancelLabel: TRANSLATIONS[lang]['cancelBtn'],
+            onConfirm: () => {
               setResetKey(prev => prev + 1);
               setVerificationImage(null);
               setActiveTab(Tab.READ);
-          }
+              setConfirmDialog(null);
+            },
+            onCancel: () => setConfirmDialog(null),
+          });
         };
 
         const t = (key) => TRANSLATIONS[lang][key];
 
         return (
           <div className="min-h-screen flex flex-col font-sans transition-colors duration-200">
+            {/* Toast Notifications */}
+            <ToastContainer toasts={toasts} />
+
+            {/* Confirm Dialog */}
+            {confirmDialog && (
+              <ConfirmDialog
+                message={confirmDialog.message}
+                confirmLabel={confirmDialog.confirmLabel}
+                cancelLabel={confirmDialog.cancelLabel}
+                onConfirm={confirmDialog.onConfirm}
+                onCancel={confirmDialog.onCancel}
+              />
+            )}
+
+            {/* Header */}
             <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -1009,7 +1491,7 @@
                 </div>
 
                 <div className="flex items-center gap-3">
-                   <button 
+                   <button
                     onClick={handleReset}
                     className="p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-colors"
                     aria-label="Reset"
@@ -1018,7 +1500,7 @@
                     <Icons.RotateCcw size={20} />
                   </button>
                   <div className="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-1"></div>
-                   <button 
+                   <button
                     onClick={toggleLang}
                     className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors"
                     aria-label="Toggle Language"
@@ -1028,7 +1510,7 @@
                       <span>{lang === Language.EN ? 'EN' : 'JP'}</span>
                     </div>
                   </button>
-                  <button 
+                  <button
                     onClick={toggleTheme}
                     className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors"
                     aria-label="Toggle Theme"
@@ -1039,13 +1521,14 @@
               </div>
             </header>
 
+            {/* Navigation Tabs */}
             <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex gap-8">
                 <button
                   onClick={() => setActiveTab(Tab.READ)}
                   className={`flex items-center gap-2 py-4 border-b-2 text-sm font-medium transition-colors ${
-                    activeTab === Tab.READ 
-                      ? 'border-blue-600 text-blue-600 dark:text-blue-400' 
+                    activeTab === Tab.READ
+                      ? 'border-blue-600 text-blue-600 dark:text-blue-400'
                       : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
                   }`}
                 >
@@ -1055,8 +1538,8 @@
                 <button
                   onClick={() => setActiveTab(Tab.GENERATE)}
                   className={`flex items-center gap-2 py-4 border-b-2 text-sm font-medium transition-colors ${
-                    activeTab === Tab.GENERATE 
-                      ? 'border-blue-600 text-blue-600 dark:text-blue-400' 
+                    activeTab === Tab.GENERATE
+                      ? 'border-blue-600 text-blue-600 dark:text-blue-400'
                       : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
                   }`}
                 >
@@ -1066,13 +1549,14 @@
               </div>
             </div>
 
+            {/* Main Content */}
             <main className="flex-1 bg-gray-50 dark:bg-gray-950 p-4 sm:p-6 lg:p-8 overflow-y-auto">
               <div className={activeTab === Tab.READ ? 'block' : 'hidden'}>
-                <QRReader key={`reader-${resetKey}`} lang={lang} initialImage={verificationImage} />
+                <QRReader key={`reader-${resetKey}`} lang={lang} initialImage={verificationImage} showToast={showToast} />
               </div>
-              
+
               <div className={activeTab === Tab.GENERATE ? 'block' : 'hidden'}>
-                <QRGenerator key={`gen-${resetKey}`} lang={lang} onVerify={handleVerifyRequest} />
+                <QRGenerator key={`gen-${resetKey}`} lang={lang} onVerify={handleVerifyRequest} showToast={showToast} />
               </div>
             </main>
 
