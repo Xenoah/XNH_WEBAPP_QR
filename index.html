@@ -406,6 +406,43 @@
       }).catch(reject);
     });
 
+    const escapeSvgAttr = (value = '') => String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    const injectLogoIntoSvg = (svg, settings, size) => {
+      if (!settings.logoSrc) return svg;
+      const viewBoxMatch = svg.match(/\bviewBox=["']([^"']+)["']/i);
+      const viewBox = viewBoxMatch
+        ? viewBoxMatch[1].trim().split(/[\s,]+/).map(Number)
+        : null;
+      const readSvgNumber = (attr, fallback) => {
+        const match = svg.match(new RegExp(`(?:^|[\\s<])${attr}=["']([0-9.]+)`, 'i'));
+        return match ? Number(match[1]) : fallback;
+      };
+      const box = viewBox && viewBox.length === 4 && viewBox.every(Number.isFinite)
+        ? { x: viewBox[0], y: viewBox[1], w: viewBox[2], h: viewBox[3] }
+        : { x: 0, y: 0, w: readSvgNumber('width', size), h: readSvgNumber('height', size) };
+      const baseSize = Math.min(box.w, box.h);
+      const logoSize = baseSize * 0.22;
+      const x = box.x + (box.w - logoSize) / 2;
+      const y = box.y + (box.h - logoSize) / 2;
+      const radius = logoSize / 2 + (baseSize / size) * 8;
+      const bg = escapeSvgAttr(settings.bgColor || '#ffffff');
+      const src = escapeSvgAttr(settings.logoSrc);
+      const logoSvg = [
+        `<circle cx="${box.x + box.w / 2}" cy="${box.y + box.h / 2}" r="${radius}" fill="${bg}"/>`,
+        `<image href="${src}" xlink:href="${src}" x="${x}" y="${y}" width="${logoSize}" height="${logoSize}" preserveAspectRatio="xMidYMid meet"/>`
+      ].join('');
+
+      return svg.replace(/<svg\b([^>]*)>/, (match, attrs) => {
+        if (/\sxmlns:xlink=/.test(match)) return match;
+        return `<svg${attrs} xmlns:xlink="http://www.w3.org/1999/xlink">`;
+      }).replace('</svg>', `${logoSvg}</svg>`);
+    };
+
     // Apply transparency by replacing bg-colored pixels with alpha=0
     const applyTransparency = (canvas, bgColor) => {
       const ctx = canvas.getContext('2d');
@@ -990,12 +1027,14 @@
 
       const downloadSVG = () => {
         if (!settings.text || !window.QRCode?.toString) { if (showToast) showToast(t('libraryError'),'error'); return; }
+        const size = settings.downloadSize || 512;
         window.QRCode.toString(settings.text, {
           errorCorrectionLevel: settings.level, margin: settings.includeMargin?4:1,
-          color: { dark: settings.fgColor, light: settings.bgColor }, width: 512, type: 'svg'
+          color: { dark: settings.fgColor, light: settings.bgColor }, width: size, type: 'svg'
         }, (err, svg) => {
           if (err) { if (showToast) showToast('SVG error','error'); return; }
-          const blob = new Blob([svg],{type:'image/svg+xml'});
+          const svgWithLogo = injectLogoIntoSvg(svg, settings, size);
+          const blob = new Blob([svgWithLogo],{type:'image/svg+xml'});
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a'); a.href=url; a.download=`qrcode-${Date.now()}.svg`;
           document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
