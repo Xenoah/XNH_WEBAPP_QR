@@ -104,6 +104,80 @@
     const Theme = { LIGHT: 'light', DARK: 'dark' };
     const FAVORITES_KEY = 'qqr_favorites_v1';
     const QR_CAPACITY = { L: 2953, M: 2331, Q: 1663, H: 1273 };
+    window.__QQR_DEBUG__ = window.__QQR_DEBUG__ || {};
+
+    const setDebugState = (section, data) => {
+      window.__QQR_DEBUG__ = {
+        ...window.__QQR_DEBUG__,
+        [section]: data,
+        updatedAt: new Date().toISOString(),
+      };
+    };
+
+    const getLocalStorageSnapshot = () => {
+      try {
+        return Object.keys(localStorage).reduce((acc, key) => {
+          acc[key] = localStorage.getItem(key);
+          return acc;
+        }, {});
+      } catch (err) {
+        return { error: err?.message || 'localStorage unavailable' };
+      }
+    };
+
+    const getDebugSnapshot = () => ({
+      appName: 'QuickQReader',
+      timestamp: new Date().toISOString(),
+      browser: {
+        href: window.location.href,
+        protocol: window.location.protocol,
+        userAgent: navigator.userAgent,
+        language: navigator.language,
+        online: navigator.onLine,
+      },
+      support: {
+        mediaDevices: !!navigator.mediaDevices,
+        getUserMedia: !!navigator.mediaDevices?.getUserMedia,
+        enumerateDevices: !!navigator.mediaDevices?.enumerateDevices,
+        clipboard: !!navigator.clipboard,
+        share: !!navigator.share,
+      },
+      libraries: {
+        React: !!window.React,
+        jsQR: !!window.jsQR,
+        QRCode: !!window.QRCode,
+        Papa: !!window.Papa,
+        JSZip: !!window.JSZip,
+      },
+      localStorage: getLocalStorageSnapshot(),
+      state: window.__QQR_DEBUG__ || {},
+    });
+
+    const openDebugWindow = () => {
+      const w = window.open('', 'qqr-debug', 'width=760,height=680,scrollbars=yes,resizable=yes');
+      if (!w) return false;
+      w.document.write(`<!DOCTYPE html><html><head><title>QuickQReader Debug</title>
+        <style>
+          body{margin:0;background:#0f172a;color:#e2e8f0;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;}
+          header{position:sticky;top:0;background:#111827;border-bottom:1px solid #334155;padding:14px 18px;}
+          h1{font-size:16px;margin:0 0 4px;} p{margin:0;color:#94a3b8;font-size:12px;}
+          pre{white-space:pre-wrap;word-break:break-word;margin:0;padding:18px;font-size:12px;line-height:1.55;}
+        </style></head><body>
+        <header><h1>QuickQReader Debug</h1><p>Live snapshot. Konami command opened this window.</p></header>
+        <pre id="debug"></pre>
+        <script>
+          function render(){
+            var snapshot = window.opener && window.opener.getDebugSnapshot ? window.opener.getDebugSnapshot() : { error: 'Opener is unavailable' };
+            document.getElementById('debug').textContent = JSON.stringify(snapshot, null, 2);
+          }
+          render();
+          setInterval(render, 500);
+        <\/script></body></html>`);
+      w.document.close();
+      return true;
+    };
+    window.getDebugSnapshot = getDebugSnapshot;
+    window.openDebugWindow = openDebugWindow;
 
     const DEFAULT_QR_SETTINGS = {
       text: 'https://example.com',
@@ -162,6 +236,8 @@
         favName: 'Favorite name', save: 'Save', close: 'Close',
         downloadTransparent: 'Download (Transparent)',
         histExport: 'Export CSV',
+        cameraDevice: 'Camera Device', defaultCamera: 'Default Camera',
+        noCameras: 'No camera devices found',
       },
       jp: {
         appTitle: 'クイックQリーダー', tabRead: 'QRコード読み取り', tabGen: 'QRコード生成',
@@ -205,6 +281,8 @@
         favName: 'お気に入り名', save: '保存', close: '閉じる',
         downloadTransparent: 'ダウンロード (透過)',
         histExport: 'CSV出力',
+        cameraDevice: '使用カメラ', defaultCamera: 'デフォルトカメラ',
+        noCameras: 'カメラが見つかりません',
       }
     };
 
@@ -635,6 +713,9 @@
       const videoRef = useRef(null);
       const canvasRef = useRef(null);
       const [isCameraActive, setIsCameraActive] = useState(false);
+      const [cameraDevices, setCameraDevices] = useState([]);
+      const [selectedCameraId, setSelectedCameraId] = useState('');
+      const [cameraStatus, setCameraStatus] = useState('idle');
       const requestRef = useRef(0);
 
       const addToHistory = useCallback((text) => {
@@ -669,6 +750,21 @@
         if (initialImage) { setActiveMode('file'); setPreviewImage(initialImage); scanImage(initialImage); }
       }, [initialImage, scanImage]);
 
+      const loadCameraDevices = useCallback(async () => {
+        if (!navigator.mediaDevices?.enumerateDevices) return;
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          setCameraDevices(devices.filter(d => d.kind === 'videoinput'));
+        } catch {}
+      }, []);
+
+      useEffect(() => {
+        loadCameraDevices();
+        if (!navigator.mediaDevices?.addEventListener) return;
+        navigator.mediaDevices.addEventListener('devicechange', loadCameraDevices);
+        return () => navigator.mediaDevices.removeEventListener('devicechange', loadCameraDevices);
+      }, [loadCameraDevices]);
+
       const stopCamera = useCallback(() => {
         if (videoRef.current?.srcObject) {
           videoRef.current.srcObject.getTracks().forEach(t => t.stop());
@@ -676,6 +772,7 @@
         }
         if (requestRef.current) cancelAnimationFrame(requestRef.current);
         setIsCameraActive(false);
+        setCameraStatus('idle');
       }, []);
 
       const tick = useCallback(() => {
@@ -695,28 +792,70 @@
         requestRef.current = requestAnimationFrame(tick);
       }, [addToHistory]);
 
-      const startCamera = async () => {
+      const startCamera = async (deviceId = selectedCameraId) => {
         setError(null); setPreviewImage(null); setScanResult(null);
+        setCameraStatus('requesting');
         if (window.location.protocol === 'file:') {
           setError(lang==='jp'
             ? 'セキュリティ上の制限により、ローカルファイル(file://)からカメラを起動できません。'
             : 'Camera access is restricted on local files. Use GitHub Pages or localhost.');
+          setCameraStatus('blocked-file-protocol');
           return;
         }
-        if (!navigator.mediaDevices?.getUserMedia) { setError(t('cameraError')); return; }
+        if (!navigator.mediaDevices?.getUserMedia) { setError(t('cameraError')); setCameraStatus('unsupported'); return; }
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+          stopCamera();
+          const video = deviceId
+            ? { deviceId: { exact: deviceId } }
+            : { facingMode: 'environment' };
+          const stream = await navigator.mediaDevices.getUserMedia({ video });
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
             videoRef.current.setAttribute('playsinline', 'true');
             videoRef.current.play();
             setIsCameraActive(true);
+            setCameraStatus('active');
+            const activeDeviceId = stream.getVideoTracks()[0]?.getSettings?.().deviceId;
+            if (!deviceId && activeDeviceId) setSelectedCameraId(activeDeviceId);
+            loadCameraDevices();
             requestRef.current = requestAnimationFrame(tick);
           }
-        } catch { setError(t('cameraError')); setIsCameraActive(false); }
+        } catch {
+          setError(t('cameraError'));
+          setIsCameraActive(false);
+          setCameraStatus('error');
+        }
+      };
+
+      const handleCameraSelect = (e) => {
+        const nextDeviceId = e.target.value;
+        setSelectedCameraId(nextDeviceId);
+        if (isCameraActive) startCamera(nextDeviceId);
       };
 
       useEffect(() => () => stopCamera(), [stopCamera, activeMode]);
+
+      useEffect(() => {
+        setDebugState('reader', {
+          activeMode,
+          scanResult,
+          scanResultType: scanResult ? detectQRType(scanResult) : null,
+          error,
+          isCopied,
+          previewImage: !!previewImage,
+          scanHistoryCount: scanHistory.length,
+          isDragging,
+          isCameraActive,
+          cameraStatus,
+          selectedCameraId,
+          cameraDevices: cameraDevices.map((d, i) => ({
+            index: i,
+            deviceId: d.deviceId,
+            groupId: d.groupId,
+            label: d.label || `Camera ${i + 1}`,
+          })),
+        });
+      }, [activeMode, scanResult, error, isCopied, previewImage, scanHistory.length, isDragging, isCameraActive, cameraStatus, selectedCameraId, cameraDevices]);
 
       // Ctrl+V paste to scan
       useEffect(() => {
@@ -822,6 +961,19 @@
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 min-h-[280px] flex flex-col items-center justify-center border border-gray-100 dark:border-gray-700">
             {activeMode==='camera' && (
               <div className="w-full flex flex-col items-center gap-4">
+                <div className="w-full max-w-md">
+                  <label className="block text-sm font-medium mb-2">{t('cameraDevice')}</label>
+                  <select value={selectedCameraId} onChange={handleCameraSelect}
+                    className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm">
+                    <option value="">{t('defaultCamera')}</option>
+                    {cameraDevices.length === 0 && <option value="" disabled>{t('noCameras')}</option>}
+                    {cameraDevices.map((device, index) => (
+                      <option key={device.deviceId || index} value={device.deviceId}>
+                        {device.label || `${t('cameraDevice')} ${index + 1}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <div className="relative w-full max-w-md aspect-square bg-gray-900 rounded-xl overflow-hidden">
                   <video ref={videoRef} className="w-full h-full object-cover"/>
                   <canvas ref={canvasRef} className="hidden"/>
@@ -836,7 +988,7 @@
                     </div>
                   )}
                 </div>
-                <button onClick={isCameraActive?stopCamera:startCamera}
+                <button onClick={isCameraActive ? stopCamera : () => startCamera()}
                   className={`px-8 py-2.5 rounded-full font-semibold text-white transition-all shadow-md active:scale-95 ${isCameraActive?'bg-red-500 hover:bg-red-600':'bg-blue-600 hover:bg-blue-700'}`}>
                   {isCameraActive?t('stopCamera'):t('startCamera')}
                 </button>
@@ -974,6 +1126,32 @@
       }, [csvRecords, currentCsvIndex, inputText]);
 
       useEffect(() => { if (realtimePreview) setDisplayParams(settings); }, [settings, realtimePreview]);
+
+      useEffect(() => {
+        const summarizeSettings = (src) => ({
+          ...src,
+          textLength: src.text?.length || 0,
+          logoSrc: !!src.logoSrc,
+        });
+        setDebugState('generator', {
+          settings: summarizeSettings(settings),
+          displayParams: summarizeSettings(displayParams),
+          displayType: detectQRType(displayParams.text || ''),
+          inputTextLength: inputText.length,
+          csvRecordCount: csvRecords.length,
+          currentCsvIndex,
+          realtimePreview,
+          showSettings,
+          previewKey,
+          isZipping,
+          libError,
+          activeTemplate,
+          wifiForm: { ...wifiForm, password: wifiForm.password ? '[set]' : '' },
+          showWifiPw,
+          showFavorites,
+          showBulkPreview,
+        });
+      }, [settings, displayParams, inputText, csvRecords.length, currentCsvIndex, realtimePreview, showSettings, previewKey, isZipping, libError, activeTemplate, wifiForm, showWifiPw, showFavorites, showBulkPreview]);
 
       const handleTemplateChange = (tpl) => {
         setActiveTemplate(tpl); setCsvRecords([]);
@@ -1365,7 +1543,7 @@
 
     // ─── App ──────────────────────────────────────────────────────────────────
     const App = () => {
-      const [activeTab, setActiveTab] = useState(Tab.READ);
+      const [activeTab, setActiveTab] = useState(Tab.GENERATE);
       const [lang, setLang] = useState(Language.EN);
       const [theme, setTheme] = useState(Theme.LIGHT);
       const [verificationImage, setVerificationImage] = useState(null);
@@ -1373,6 +1551,7 @@
       const [toasts, setToasts] = useState([]);
       const [confirmDialog, setConfirmDialog] = useState(null);
       const [generatorInitText, setGeneratorInitText] = useState(null);
+      const konamiIndexRef = useRef(0);
 
       const showToast = useCallback((message, type='success') => {
         const id = Date.now()+Math.random();
@@ -1383,6 +1562,35 @@
       useEffect(() => {
         document.documentElement.classList.toggle('dark', theme===Theme.DARK);
       }, [theme]);
+
+      useEffect(() => {
+        setDebugState('app', {
+          activeTab,
+          lang,
+          theme,
+          verificationImage: !!verificationImage,
+          resetKey,
+          toasts: toasts.map(({ id, message, type }) => ({ id, message, type })),
+          confirmDialogOpen: !!confirmDialog,
+          generatorInitText,
+        });
+      }, [activeTab, lang, theme, verificationImage, resetKey, toasts, confirmDialog, generatorInitText]);
+
+      useEffect(() => {
+        const sequence = ['arrowup','arrowup','arrowdown','arrowdown','arrowleft','arrowright','arrowleft','arrowright','b','a'];
+        const handleKeyDown = (e) => {
+          const key = e.key.toLowerCase();
+          const expected = sequence[konamiIndexRef.current];
+          konamiIndexRef.current = key === expected ? konamiIndexRef.current + 1 : (key === sequence[0] ? 1 : 0);
+          if (konamiIndexRef.current === sequence.length) {
+            konamiIndexRef.current = 0;
+            const opened = openDebugWindow();
+            showToast(opened ? 'Debug window opened' : 'Popup blocked', opened ? 'info' : 'error');
+          }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+      }, [showToast]);
 
       const handleVerifyRequest = (image) => {
         setVerificationImage(image); setActiveTab(Tab.READ);
@@ -1397,7 +1605,7 @@
           message: TRANSLATIONS[lang]['confirmResetMsg'],
           confirmLabel: TRANSLATIONS[lang]['confirmResetBtn'],
           cancelLabel: TRANSLATIONS[lang]['cancelBtn'],
-          onConfirm: () => { setResetKey(p=>p+1); setVerificationImage(null); setGeneratorInitText(null); setActiveTab(Tab.READ); setConfirmDialog(null); },
+          onConfirm: () => { setResetKey(p=>p+1); setVerificationImage(null); setGeneratorInitText(null); setActiveTab(Tab.GENERATE); setConfirmDialog(null); },
           onCancel: () => setConfirmDialog(null),
         });
       };
@@ -1439,7 +1647,7 @@
           {/* Tabs */}
           <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex gap-6">
-              {[[Tab.READ,Icons.ScanLine,t('tabRead')],[Tab.GENERATE,Icons.QrCode,t('tabGen')]].map(([tab,Icon,label])=>(
+              {[[Tab.GENERATE,Icons.QrCode,t('tabGen')],[Tab.READ,Icons.ScanLine,t('tabRead')]].map(([tab,Icon,label])=>(
                 <button key={tab} onClick={()=>setActiveTab(tab)}
                   className={`flex items-center gap-2 py-4 border-b-2 text-sm font-semibold transition-all ${activeTab===tab?'border-blue-600 text-blue-600 dark:text-blue-400':'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}>
                   <Icon size={17}/>{label}
